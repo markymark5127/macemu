@@ -187,10 +187,19 @@ bool InitAll(const char *vmdir)
 #endif
 
 	// Install ROM patches
-	if (!PatchROM()) {
-		ErrorAlert(STR_UNSUPPORTED_ROM_TYPE_ERR);
-		return false;
-	}
+        if (!PatchROM()) {
+                ErrorAlert(STR_UNSUPPORTED_ROM_TYPE_ERR);
+                return false;
+        }
+
+        // Fake battery information if requested
+        if (PrefsFindBool("emulatebattery")) {
+                // Pretend a fully charged battery is present
+                WriteMacInt8(0x08ae, 0);       // battery flags
+                WriteMacInt8(0x08af, 100);     // battery level
+                XPRAM[0x98] = 100;             // store last known level
+                XPRAM[0x99] = 0;               // flags
+        }
 
 #if ENABLE_MON
 	// Initialize mon

@@ -66,9 +66,10 @@ prefs_desc common_prefs_items[] = {
 	{"jitcachesize", TYPE_INT32, false,  "translation cache size in KB"},
 	{"jitlazyflush", TYPE_BOOLEAN, false, "enable lazy invalidation of translation cache"},
 	{"jitinline", TYPE_BOOLEAN, false,   "enable translation through constant jumps"},
-	{"jitblacklist", TYPE_STRING, false, "blacklist opcodes from translation"},
-	{"keyboardtype", TYPE_INT32, false, "hardware keyboard type"},
-	{NULL, TYPE_END, false, NULL} // End of list
+        {"jitblacklist", TYPE_STRING, false, "blacklist opcodes from translation"},
+       {"emulatebattery", TYPE_BOOLEAN, false, "fake PowerBook battery status"},
+        {"keyboardtype", TYPE_INT32, false, "hardware keyboard type"},
+        {NULL, TYPE_END, false, NULL} // End of list
 };
 
 
@@ -100,11 +101,13 @@ void AddPrefsDefaults(void)
 	PrefsAddBool("jitfpu", true);
 	PrefsAddBool("jitdebug", false);
 	PrefsAddInt32("jitcachesize", 8192);
-	PrefsAddBool("jitlazyflush", true);
-	PrefsAddBool("jitinline", true);
+        PrefsAddBool("jitlazyflush", true);
+        PrefsAddBool("jitinline", true);
 #else
-	PrefsAddBool("jit", false);
+        PrefsAddBool("jit", false);
 #endif
+
+    PrefsAddBool("emulatebattery", false);
 
     PrefsAddInt32("keyboardtype", 5);
 }
