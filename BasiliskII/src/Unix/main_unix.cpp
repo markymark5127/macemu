@@ -205,6 +205,10 @@ static const char *gui_connection_path = NULL;	// GUI connection identifier
 static void *xpram_func(void *arg);
 static void *tick_func(void *arg);
 static void one_tick(...);
+#if defined(__linux__)
+static int get_host_battery_level();
+#endif
+static void update_battery_status();
 #if !EMULATED_68K
 static void sigirq_handler(int sig, int code, struct sigcontext *scp);
 static void sigill_handler(int sig, int code, struct sigcontext *scp);
@@ -731,11 +735,13 @@ int main(int argc, char **argv)
 #endif
 
 	// Initialize everything
-	if (!InitAll(vmdir))
-		QuitEmulator();
-	D(bug("Initialization complete\n"));
+        if (!InitAll(vmdir))
+                QuitEmulator();
+        D(bug("Initialization complete\n"));
 
-	D(bug("Mac RAM starts at %p (%08x)\n", RAMBaseHost, RAMBaseMac));
+        update_battery_status();
+
+        D(bug("Mac RAM starts at %p (%08x)\n", RAMBaseHost, RAMBaseMac));
 	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
 
 #if !EMULATED_68K
@@ -1196,11 +1202,13 @@ static void *xpram_func(void *arg)
 
 static void one_second(void)
 {
-	// Pseudo Mac 1Hz interrupt, update local time
-	WriteMacInt32(0x20c, TimerDateTime());
+        // Pseudo Mac 1Hz interrupt, update local time
+        WriteMacInt32(0x20c, TimerDateTime());
 
-	SetInterruptFlag(INTFLAG_1HZ);
-	TriggerInterrupt();
+        update_battery_status();
+
+        SetInterruptFlag(INTFLAG_1HZ);
+        TriggerInterrupt();
 
 #ifndef USE_PTHREADS_SERVICES
 	static int second_counter = 0;
@@ -1254,9 +1262,51 @@ static void *tick_func(void *arg)
 	}
 	uint64 end = GetTicks_usec();
 	D(bug("%lld ticks in %lld usec = %f ticks/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
-	return NULL;
+       return NULL;
 }
 #endif
+
+#if defined(__linux__)
+static int get_host_battery_level()
+{
+        const char *paths[] = {
+                "/sys/class/power_supply/BAT0/capacity",
+                "/sys/class/power_supply/BAT1/capacity"
+        };
+        FILE *f = NULL;
+        int level = 100;
+        for (size_t i = 0; i < sizeof(paths)/sizeof(paths[0]); ++i) {
+                f = fopen(paths[i], "r");
+                if (f)
+                        break;
+        }
+        if (f) {
+                if (fscanf(f, "%d", &level) != 1)
+                        level = 100;
+                fclose(f);
+        }
+        if (level < 0)
+                level = 0;
+        if (level > 100)
+                level = 100;
+        return level;
+}
+#endif
+
+static void update_battery_status()
+{
+        if (!PrefsFindBool("emulatebattery"))
+                return;
+#if defined(__linux__)
+        int level = get_host_battery_level();
+#else
+        int level = 100;
+#endif
+        WriteMacInt8(0x08ae, 0);
+        WriteMacInt8(0x08af, level);
+        XPRAM[0x98] = level;
+        XPRAM[0x99] = 0;
+}
 
 
 #if !EMULATED_68K
